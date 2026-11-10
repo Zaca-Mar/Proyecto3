@@ -42,38 +42,224 @@ En el celular: usá la IP de tu PC con el puerto `5173`, en la misma red WiFi. V
 
 En desarrollo, la primera vez que arranca la API con una base MySQL vacía se cargan datos demo (usuarios, ejercicios, un plan, una sesión y molestias). No uses esos usuarios de demostración en producción.
 
-## Despliegue en Render + Aiven
-Creá una base **MySQL** en Aiven y un Web Service en Render con `backend/` como directorio raíz. Comandos sugeridos:
+## Variables de entorno
 
-- Build: `yarn install --frozen-lockfile && yarn build`
-- Start: `yarn start:prod`
+### Backend (`backend/.env`)
 
-Configurá estas variables en Render (no subas secretos al repositorio):
+El archivo va en `backend/`, junto al `package.json`, codificado en **UTF-8**, con el formato `CLAVE=valor` (sin espacios alrededor del `=`). No se sube a Git: el repositorio incluye `backend/.env.example` como plantilla (`cp .env.example .env`). Al cambiar el `.env` hay que reiniciar `yarn start:dev`, porque el modo watch no lo relee.
 
-- `NODE_ENV=production`
-- `DB_TYPE=mysql`, `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD` y `DB_DATABASE`: datos de conexión MySQL de Aiven.
-- `DB_SSL=true` y `DB_SSL_CA`: habilitan TLS usando el certificado CA de Aiven; la conexión valida el certificado del servidor.
-- `JWT_EXPIRATION_ACCESS`: duración del token de acceso (por ejemplo, `7d`).
-- `DB_PORT` debe ser el puerto que muestra Aiven (no necesariamente `3306`).
-- `JWT_SECRET`: secreto aleatorio de al menos 32 caracteres. Podés generarlo con `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`.
-- `CORS_ORIGIN`: origen público del sitio en Netlify, sin ruta (por ejemplo, `https://mi-fittracker.netlify.app`).
-- `DB_SYNCHRONIZE=true` solo para el primer inicio, para crear las tablas; después de confirmar el inicio correcto, cambiarlo a `false`. No mantener la sincronización automática del esquema activa en producción; los cambios futuros del esquema deben aplicarse mediante migraciones.
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `NODE_ENV` | no | `development` (por defecto) o `production`. En producción se exige SSL y `CORS_ORIGIN`. |
+| `PORT` | no | Puerto de la API (3000 por defecto). En Render **no se define**: lo asigna la plataforma. |
+| `CORS_ORIGIN` | en producción | Orígenes permitidos separados por coma, sin barra final. |
+| `DB_TYPE` | no | Solo `mysql`. |
+| `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE` | sí | Conexión MySQL. |
+| `DB_SYNCHRONIZE` | no | `true` crea/actualiza las tablas. Solo para el primer arranque. |
+| `DB_SSL` | no | `true` habilita TLS (obligatorio en producción). |
+| `DB_SSL_CA` | si `DB_SSL=true` | **Contenido** del certificado CA en una sola línea, con `\n` literales (no la ruta del archivo). |
+| `JWT_SECRET` | sí | Mínimo 32 caracteres aleatorios. |
+| `JWT_EXPIRATION_ACCESS` | no | Duración del token (`7d` por defecto). |
+| `SEED_DEMO_DATA` | no | `false` evita cargar los datos demo en desarrollo. |
+| `INITIAL_ADMIN_*` | no | Ver [Primer arranque en producción](#primer-arranque-en-producción). |
 
-Opcionalmente, para habilitar las funciones de administrador, configurá juntas `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` (mínimo 12 caracteres), `INITIAL_ADMIN_NOMBRE`, `INITIAL_ADMIN_APELLIDO` e `INITIAL_ADMIN_DNI`. Se crea ese usuario una sola vez; los usuarios demo con contraseña `1234` no se cargan en producción.
+Ejemplo para desarrollo local:
 
-En Netlify, configurá el directorio base `frontend`, comando de build `yarn install --frozen-lockfile && yarn build`, directorio de publicación `dist` y la variable de entorno de build `VITE_API_URL` con la URL pública real de Render (por ejemplo, `https://mi-backend.onrender.com`, sin `/api` ni barra final). Reemplazá el valor de ejemplo de `frontend/.env.production` o definí `VITE_API_URL` en Netlify. En Render, `CORS_ORIGIN` debe coincidir con el dominio Netlify.
+```env
+NODE_ENV=development
+PORT=3000
+CORS_ORIGIN=http://localhost:5173
 
-Para cargar la biblioteca completa desde los SQL de `backend/seeds/biblioteca/`, iniciá la API una vez para que cree las tablas y luego ejecutá desde `backend/`:
+DB_TYPE=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_USERNAME=root
+DB_PASSWORD=tu_password
+DB_DATABASE=fittracker
+DB_SYNCHRONIZE=true
+DB_SSL=false
+
+JWT_SECRET=una_clave_larga_de_al_menos_32_caracteres
+JWT_EXPIRATION_ACCESS=7d
+```
+
+Para generar un `JWT_SECRET`:
 
 ```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+Para convertir el certificado de Aiven al formato de `DB_SSL_CA` (una sola línea):
+
+```powershell
+# PowerShell
+(Get-Content "ruta\al\ca.pem" -Raw).Trim() -replace "`r?`n", '\n'
+```
+
+```bash
+# Linux / macOS / Git Bash
+awk 'NF {sub(/\r/, ""); printf "%s\\n", $0}' ca.pem
+```
+
+### Frontend
+
+`VITE_API_URL` es la única variable. Vite la incorpora **al compilar**, así que cambiarla en Netlify exige un nuevo deploy.
+
+## Despliegue en Aiven + Render + Netlify
+
+El orden recomendado es base de datos, backend y frontend.
+
+### 1. Base de datos (Aiven)
+
+1. Creá un servicio **MySQL**.
+2. En *Overview* copiá host, puerto, usuario, contraseña y nombre de la base (suele ser `avnadmin` y `defaultdb`). El puerto **no** es `3306`.
+3. Descargá el **CA certificate** (`ca.pem`).
+4. En *Allowed IP addresses* dejá `0.0.0.0/0`: Render usa IPs variables.
+
+### 2. Backend (Render)
+
+Creá un Web Service con `backend/` como *Root Directory*:
+
+| Campo | Valor |
+|---|---|
+| Build Command | `yarn install --frozen-lockfile --production=false && yarn build` |
+| Start Command | `yarn start:prod` |
+
+`--production=false` es necesario porque Render define `NODE_ENV=production` y yarn omitiría las devDependencies, donde están el CLI de Nest y TypeScript. `start:prod` ejecuta `node dist/main.js`; si el build deja el archivo en otra ruta (por ejemplo `dist/src/main.js`), ajustá el script.
+
+Variables en Render (no subas secretos al repositorio):
+
+```env
+NODE_ENV=production
+DB_TYPE=mysql
+DB_HOST=...            # host de Aiven
+DB_PORT=...            # puerto de Aiven
+DB_USERNAME=avnadmin
+DB_PASSWORD=...
+DB_DATABASE=defaultdb
+DB_SSL=true
+DB_SSL_CA=-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----
+DB_SYNCHRONIZE=true    # solo el primer inicio; después, false
+JWT_SECRET=...         # mínimo 32 caracteres aleatorios
+JWT_EXPIRATION_ACCESS=7d
+CORS_ORIGIN=https://mi-fittracker.netlify.app
+```
+
+- No definas `PORT`.
+- `DB_SYNCHRONIZE=true` solo para crear las tablas en el primer inicio. Después de confirmar que arrancó (en los logs aparece `API de FitTracker escuchando en el puerto ...`), cambialo a `false`: los cambios futuros del esquema deben aplicarse mediante migraciones.
+- El plan gratuito de Render duerme el servicio tras unos 15 minutos sin uso; la primera petición posterior puede tardar entre 30 y 60 segundos.
+
+### 3. Frontend (Netlify)
+
+Directorio base `frontend`, comando de build `yarn install --frozen-lockfile && yarn build`, directorio de publicación `dist`, y la variable de entorno de build `VITE_API_URL` con la URL pública del backend (por ejemplo `https://mi-backend.onrender.com`, sin `/api` ni barra final). Esa variable prevalece sobre el valor de ejemplo de `frontend/.env.production`. Después de crearla o cambiarla, usá *Deploys → Trigger deploy → Clear cache and deploy site*.
+
+En Render, `CORS_ORIGIN` debe coincidir exactamente con el dominio de Netlify.
+
+## Primer arranque en producción
+
+En producción **no se cargan** los usuarios demo ni el catálogo. Hay que preparar cuatro cosas.
+
+### 1. Tablas
+
+Con `DB_SYNCHRONIZE=true` en el primer inicio, TypeORM las crea. Si más adelante `yarn seed:biblioteca` informa `Faltan columnas en ejercicio (...)`, repetí este paso para que se agreguen y volvé a ponerlo en `false`.
+
+### 2. Administrador
+
+Opción A: configurá juntas, en Render, las cinco variables:
+
+```env
+INITIAL_ADMIN_EMAIL=admin@ejemplo.com
+INITIAL_ADMIN_PASSWORD=...        # mínimo 12 caracteres
+INITIAL_ADMIN_NOMBRE=...
+INITIAL_ADMIN_APELLIDO=...
+INITIAL_ADMIN_DNI=...
+```
+
+Se crea una sola vez, al arrancar. El email **no** puede pertenecer a un usuario existente que no sea administrador (la API no arranca y lo informa). Si falta alguna de las cinco variables, tampoco arranca.
+
+Opción B: registrá una cuenta desde la app y promovela por SQL:
+
+```sql
+UPDATE usuario SET rol = 'admin' WHERE email = 'tu-email';
+```
+
+Cerrá sesión y volvé a entrar para que el token tome el rol nuevo.
+
+### 3. Entrenadores
+
+El administrador los crea desde la app (*Administrador → Crear entrenador*). Si necesitás crear usuarios directamente en la base, generá el hash con bcrypt:
+
+```bash
+cd backend
+node -e "console.log(require('bcryptjs').hashSync('TuClave', 10))"
+```
+
+e insertalo en la columna `passwordHash`. Al pegar el hash tené cuidado con los espacios o saltos de línea que se cuelan, y no lo uses dentro de comillas dobles en PowerShell (los `$` se interpretan como variables). Un hash válido mide **60 caracteres**:
+
+```sql
+SELECT email, LENGTH(passwordHash) FROM usuario;
+```
+
+### 4. Biblioteca de ejercicios
+
+Los archivos de `backend/seeds/biblioteca/*.sql` tienen sintaxis tipo PostgreSQL (`DO $$ ... RAISE NOTICE`) y **no se pueden ejecutar** directamente en MySQL ni en Workbench. Los importa `yarn seed:biblioteca`, que los parsea y los inserta en la tabla `ejercicio` (unos 1000 ejercicios).
+
+Para verificar los archivos sin tocar ninguna base:
+
+```bash
+yarn seed:biblioteca --check
+```
+
+Para cargar la base de Aiven desde tu PC, definí la conexión **solo en esa terminal** (dotenv no pisa variables ya definidas, así que el `.env` local no se modifica ni la contraseña queda guardada en un archivo). Desde `backend/`:
+
+```powershell
+# PowerShell
+$env:DB_HOST="host-de-aiven"
+$env:DB_PORT="puerto-de-aiven"
+$env:DB_USERNAME="avnadmin"
+$env:DB_PASSWORD="password-de-aiven"
+$env:DB_DATABASE="defaultdb"
+$env:DB_SSL="true"
+$env:DB_SSL_CA = (Get-Content "ruta\al\ca.pem" -Raw).Trim() -replace "`r?`n", '\n'
+
 yarn seed:biblioteca
 ```
 
-El importador conecta a MySQL usando las mismas variables `DB_*` y es idempotente: conserva los ejercicios existentes y agrega los nuevos. Para verificar los archivos sin modificar la base, usá `yarn seed:biblioteca --check`.
+```bash
+# bash
+export DB_HOST=host-de-aiven DB_PORT=puerto-de-aiven DB_USERNAME=avnadmin \
+       DB_PASSWORD=password-de-aiven DB_DATABASE=defaultdb DB_SSL=true
+export DB_SSL_CA="$(awk 'NF {sub(/\r/, ""); printf "%s\\n", $0}' ca.pem)"
+
+yarn seed:biblioteca
+```
+
+Notas:
+
+- Tarda unos minutos y no muestra progreso: inserta los ejercicios de a uno, dentro de una única transacción. Hasta que termina, la tabla se ve vacía. Al final imprime `Biblioteca cargada: N nuevos; M ya existían.`
+- Usa `INSERT IGNORE`, por lo que solo evita duplicados si existe un índice único sobre `ejercicio.nombre`. Verificalo con `SHOW INDEX FROM ejercicio;` y, si falta, agregalo antes de cargar: `ALTER TABLE ejercicio ADD UNIQUE KEY uq_ejercicio_nombre (nombre);`
+- Hay unos 16 nombres repetidos entre los archivos; se cargan una sola vez.
+- Cerrá la terminal al terminar para que desaparezcan las variables. Si la contraseña de Aiven apareció en capturas, chats o commits, rotala desde el panel de Aiven y actualizala en Render.
+
+## Solución de problemas
+
+| Síntoma | Causa y solución |
+|---|---|
+| `DB_HOST es obligatorio` al arrancar | La API no ve el `.env`. Verificá que esté en `backend/` (junto al `package.json`), que no se llame `.env.txt`, que esté en UTF-8 (no UTF-16) y que el nombre de la variable coincida exactamente. Probá `node -e "require('dotenv').config(); console.log(process.env.DB_HOST)"` y reiniciá `yarn start:dev`. |
+| `self-signed certificate in certificate chain` | Hay `DB_SSL=true` apuntando a una base que no es Aiven (por ejemplo `localhost`) o `DB_SSL_CA` es incorrecto. En local usá `DB_SSL=false`. Para Aiven, `DB_SSL_CA` debe ser el **contenido** del certificado en una sola línea con `\n`. |
+| `DB_SSL=true es obligatorio en producción` | Falta `DB_SSL=true` en Render. |
+| `DB_SSL_CA es obligatorio cuando DB_SSL=true` | La variable está vacía o no se definió. |
+| Login con `401` en producción | Los usuarios demo no existen en producción. Creá el administrador (ver arriba). Si lo insertaste por SQL, comprobá que el hash mida 60 caracteres. |
+| Error de CORS en el navegador | `CORS_ORIGIN` no coincide exactamente con el dominio de Netlify (sin barra final). |
+| El sitio llama a una URL equivocada | `VITE_API_URL` mal definida o sin redeploy. Se aplica al compilar: hacé *Clear cache and deploy site*. |
+| `Cannot find module .../dist/main.js` | El build compila a otra ruta. Revisá qué hay en `dist/` y ajustá `start:prod`. |
+| `Faltan columnas en ejercicio (...)` | La tabla es de una versión anterior. Activá `DB_SYNCHRONIZE=true` un inicio, volvé a `false` y repetí `yarn seed:biblioteca`. |
+| `yarn seed` → `Command "seed" not found` | El script se llama `yarn seed:biblioteca`. |
+| La primera petición tarda casi un minuto | El plan gratuito de Render duerme el servicio por inactividad. |
 
 ## Usuarios demo
 
-Todas las contraseñas son `1234`.
+Solo existen en **desarrollo** (no se cargan en producción) y únicamente si la tabla `usuario` está vacía al arrancar. Todas las contraseñas son `1234`.
 
 | Rol | Email | Notas |
 |---|---|---|
