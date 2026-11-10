@@ -1,4 +1,5 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { DeepPartial, Repository } from 'typeorm';
@@ -33,9 +34,15 @@ export class SeedService implements OnApplicationBootstrap {
     private readonly asistencias: Repository<Asistencia>,
     @InjectRepository(Molestia)
     private readonly molestias: Repository<Molestia>,
+    private readonly config: ConfigService,
   ) {}
 
   async onApplicationBootstrap() {
+    if (this.config.get<string>('NODE_ENV') === 'production') {
+      await this.crearAdminInicial();
+      return;
+    }
+    if (this.config.get<string>('SEED_DEMO_DATA') === 'false') return;
     if (await this.usuarios.count()) return;
 
     const hash = await bcrypt.hash('1234', 10);
@@ -208,5 +215,40 @@ export class SeedService implements OnApplicationBootstrap {
     });
 
     console.log('Datos de prueba cargados (contraseña de todos: 1234)');
+  }
+
+  private async crearAdminInicial() {
+    const email = this.config.get<string>('INITIAL_ADMIN_EMAIL')?.trim();
+    const password = this.config.get<string>('INITIAL_ADMIN_PASSWORD');
+    const nombre = this.config.get<string>('INITIAL_ADMIN_NOMBRE')?.trim();
+    const apellido = this.config.get<string>('INITIAL_ADMIN_APELLIDO')?.trim();
+    const dni = this.config.get<string>('INITIAL_ADMIN_DNI')?.trim();
+    if (!email && !password && !nombre && !apellido && !dni) return;
+    if (!email || !password || !nombre || !apellido || !dni) {
+      throw new Error('Para crear el administrador inicial, completá todas las variables INITIAL_ADMIN_*');
+    }
+    if (password.length < 12) {
+      throw new Error('INITIAL_ADMIN_PASSWORD debe tener al menos 12 caracteres');
+    }
+
+    const existente = await this.usuarios.findOneBy({ email });
+    if (existente) {
+      if (existente.rol !== 'admin') {
+        throw new Error('INITIAL_ADMIN_EMAIL ya está asociado a un usuario que no es administrador');
+      }
+      return;
+    }
+
+    await this.usuarios.save(
+      this.usuarios.create({
+        email,
+        nombre,
+        apellido,
+        dni,
+        rol: 'admin',
+        passwordHash: await bcrypt.hash(password, 10),
+      }),
+    );
+    console.log('Administrador inicial creado');
   }
 }

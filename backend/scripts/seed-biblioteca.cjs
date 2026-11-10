@@ -1,9 +1,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const Database = require('better-sqlite3');
+const mysql = require('mysql2/promise');
+
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const seedDirectory = path.join(__dirname, '..', 'seeds', 'biblioteca');
-const databasePath = process.env.FITTRACKER_DB_PATH || path.join(__dirname, '..', 'fittracker.db');
 const expectedColumns = [
   'entrenador_id',
   'nombre',
@@ -166,7 +167,7 @@ function readSeedRows() {
   return rows;
 }
 
-function main() {
+async function main() {
   const rows = readSeedRows();
   const uniqueNames = new Set(rows.map((row) => row.nombre));
   const repeatedNames = rows.length - uniqueNames.size;
@@ -176,13 +177,36 @@ function main() {
     return;
   }
 
-  if (!fs.existsSync(databasePath)) {
-    throw new Error('No existe fittracker.db. Iniciá la API una vez para crear el esquema y volvé a ejecutar el seed.');
+  const requiredEnvironment = ['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_DATABASE'];
+  const missingEnvironment = requiredEnvironment.filter((name) => !process.env[name]);
+  if (missingEnvironment.length > 0) {
+    throw new Error(`Faltan variables de conexión MySQL: ${missingEnvironment.join(', ')}`);
   }
 
-  const database = new Database(databasePath);
+  const sslValue = process.env.DB_SSL?.trim().toLowerCase() || 'false';
+  const sslEnabled = sslValue === 'true';
+  const ca = process.env.DB_SSL_CA?.replace(/\\n/g, '\n').trim();
+  if (!['true', 'false'].includes(sslValue)) {
+    throw new Error('DB_SSL debe ser "true" o "false"');
+  }
+  if (process.env.NODE_ENV === 'production' && !sslEnabled) {
+    throw new Error('DB_SSL=true es obligatorio en producción');
+  }
+  if (sslEnabled && !ca) {
+    throw new Error('DB_SSL_CA es obligatorio cuando DB_SSL=true');
+  }
+  const database = await mysql.createConnection({
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
+    ...(sslEnabled ? { ssl: { ca, rejectUnauthorized: true } } : {}),
+  });
+
   try {
-    const columns = new Set(database.prepare('PRAGMA table_info("ejercicio")').all().map((column) => column.name));
+    const [existingColumns] = await database.query('SHOW COLUMNS FROM `ejercicio`');
+    const columns = new Set(existingColumns.map((column) => column.Field));
     const missingColumns = requiredDatabaseColumns.filter((column) => !columns.has(column));
     if (missingColumns.length > 0) {
       throw new Error(
@@ -190,16 +214,16 @@ function main() {
       );
     }
 
-    const insert = database.prepare(`
-      INSERT OR IGNORE INTO ejercicio (
-        nombre, grupoMuscular, videoUrl, zonas, incremento, patron,
-        grupoSecundario, tipo, nivel, modalidad, descripcion, consejosTecnica
-      ) VALUES (?, ?, ?, '[]', 2.5, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const importRows = database.transaction(() => {
-      let inserted = 0;
+    await database.beginTransaction();
+    let inserted = 0;
+    try {
       for (const row of rows) {
-        inserted += insert.run(
+        const [insertResult] = await database.execute(`
+          INSERT IGNORE INTO ejercicio (
+            nombre, grupoMuscular, videoUrl, zonas, incremento, patron,
+            grupoSecundario, tipo, nivel, modalidad, descripcion, consejosTecnica
+          ) VALUES (?, ?, ?, '[]', 2.5, ?, ?, ?, ?, ?, ?, ?)
+        `, [
           row.nombre,
           row.grupoMuscular,
           row.videoUrl,
@@ -210,21 +234,21 @@ function main() {
           row.modalidad,
           row.descripcion,
           row.consejosTecnica,
-        ).changes;
+        ]);
+        inserted += insertResult.affectedRows;
       }
-      return inserted;
-    });
-
-    const inserted = importRows();
+      await database.commit();
+    } catch (error) {
+      await database.rollback();
+      throw error;
+    }
     console.log(`Biblioteca cargada: ${inserted} nuevos; ${rows.length - inserted} ya existían.`);
   } finally {
-    database.close();
+    await database.end();
   }
 }
 
-try {
-  main();
-} catch (error) {
+main().catch((error) => {
   console.error(error.message);
   process.exitCode = 1;
-}
+});

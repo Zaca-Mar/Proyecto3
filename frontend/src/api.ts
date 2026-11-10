@@ -1,10 +1,12 @@
+import apiConfig from './config/api-config';
+
 /** Cliente mínimo del backend. Guarda el token en localStorage y traduce los errores a mensajes legibles. */
 export async function api<T>(
   ruta: string,
   opciones: { method?: string; body?: unknown } = {},
 ): Promise<T> {
   const token = localStorage.getItem('token');
-  const res = await fetch('/api' + ruta, {
+  const res = await fetch(apiConfig.apiUrl + ruta, {
     method: opciones.method ?? 'GET',
     headers: {
       'Content-Type': 'application/json',

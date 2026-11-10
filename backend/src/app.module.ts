@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { databaseOptions, jwtOptions } from './config/environment.config';
 import { DbModule } from './common/database.module';
 import { AuthGuard } from './common/guards/auth.guard';
 import { AuthModule } from './auth/auth.module';
@@ -11,22 +13,18 @@ import { PlanesModule } from './planes/planes.module';
 import { EntrenamientoModule } from './entrenamiento/entrenamiento.module';
 import { MolestiasModule } from './molestias/molestias.module';
 import { SeedModule } from './database/seed.module';
-import { ENTIDADES } from './common/database/entities';
 
 @Module({
   imports: [
-    // SQLite para desarrollo (sin instalar nada). Para PostgreSQL: type 'postgres' + host/usuario/contraseña.
-    TypeOrmModule.forRoot({
-      type: 'better-sqlite3',
-      database: 'fittracker.db',
-      autoLoadEntities: false,
-      entities: ENTIDADES,
-      synchronize: true,
+    ConfigModule.forRoot({ isGlobal: true }),
+    TypeOrmModule.forRootAsync({
+      useFactory: databaseOptions,
+      inject: [ConfigService],
     }),
-    JwtModule.register({
+    JwtModule.registerAsync({
       global: true,
-      secret: process.env.JWT_SECRET || 'dev-secret-cambiar-en-produccion',
-      signOptions: { expiresIn: '7d' },
+      useFactory: jwtOptions,
+      inject: [ConfigService],
     }),
     DbModule,
     AuthModule,

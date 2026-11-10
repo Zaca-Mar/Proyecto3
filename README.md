@@ -8,7 +8,7 @@ Aplicación de seguimiento de entrenamiento con dos experiencias separadas:
 
 ## Stack
 
-- `backend/`: **NestJS + TypeORM + SQLite** (better-sqlite3). JWT, roles y validación global.
+- `backend/`: **NestJS + TypeORM + MySQL**. JWT, roles y validación global.
 - `frontend/`: **React + Vite + TypeScript**. Sin dependencias de ruteo: la navegación se resuelve con estado.
 
 ## Requisitos
@@ -25,6 +25,7 @@ Abrí **dos terminales**.
 # Terminal 1 · API
 cd backend
 yarn install
+# Copiar .env.example a .env y completar la conexión MySQL
 yarn start:dev            # http://localhost:3000
 
 # Terminal 2 · Web
@@ -35,9 +36,32 @@ yarn dev                  # http://localhost:5173
 
 Abrí http://localhost:5173.
 
-En el celular: usá la IP de tu PC con el puerto `5173`, en la misma red WiFi. Vite ya reenvía `/api` al backend.
+El frontend toma la URL de la API de `.env.development` al ejecutar Vite y de `.env.production` al compilar para producción. En desarrollo `VITE_API_URL=/api` usa el proxy de Vite; en producción debe ser la URL base de Render, sin `/api` ni barra final. En Netlify, definí también `VITE_API_URL` en las variables de entorno del sitio con la URL real del backend Render; esa variable prevalece sobre el valor de ejemplo del archivo.
 
-La primera vez que arranca la API se crea `backend/fittracker.db` con datos demo (usuarios, ejercicios, un plan, una sesión y molestias). Para empezar de cero: parar la API, borrar `fittracker.db` y volver a arrancarla.
+En el celular: usá la IP de tu PC con el puerto `5173`, en la misma red WiFi. Vite reenvía las peticiones `/api` al backend local.
+
+En desarrollo, la primera vez que arranca la API con una base MySQL vacía se cargan datos demo (usuarios, ejercicios, un plan, una sesión y molestias). No uses esos usuarios de demostración en producción.
+
+## Despliegue en Render + Aiven
+Creá una base **MySQL** en Aiven y un Web Service en Render con `backend/` como directorio raíz. Comandos sugeridos:
+
+- Build: `yarn install --frozen-lockfile && yarn build`
+- Start: `yarn start:prod`
+
+Configurá estas variables en Render (no subas secretos al repositorio):
+
+- `NODE_ENV=production`
+- `DB_TYPE=mysql`, `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD` y `DB_DATABASE`: datos de conexión MySQL de Aiven.
+- `DB_SSL=true` y `DB_SSL_CA`: habilitan TLS usando el certificado CA de Aiven; la conexión valida el certificado del servidor.
+- `JWT_EXPIRATION_ACCESS`: duración del token de acceso (por ejemplo, `7d`).
+- `DB_PORT` debe ser el puerto que muestra Aiven (no necesariamente `3306`).
+- `JWT_SECRET`: secreto aleatorio de al menos 32 caracteres. Podés generarlo con `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`.
+- `CORS_ORIGIN`: origen público del sitio en Netlify, sin ruta (por ejemplo, `https://mi-fittracker.netlify.app`).
+- `DB_SYNCHRONIZE=true` solo para el primer inicio, para crear las tablas; después de confirmar el inicio correcto, cambiarlo a `false`. No mantener la sincronización automática del esquema activa en producción; los cambios futuros del esquema deben aplicarse mediante migraciones.
+
+Opcionalmente, para habilitar las funciones de administrador, configurá juntas `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` (mínimo 12 caracteres), `INITIAL_ADMIN_NOMBRE`, `INITIAL_ADMIN_APELLIDO` e `INITIAL_ADMIN_DNI`. Se crea ese usuario una sola vez; los usuarios demo con contraseña `1234` no se cargan en producción.
+
+En Netlify, configurá el directorio base `frontend`, comando de build `yarn install --frozen-lockfile && yarn build`, directorio de publicación `dist` y la variable de entorno de build `VITE_API_URL` con la URL pública real de Render (por ejemplo, `https://mi-backend.onrender.com`, sin `/api` ni barra final). Reemplazá el valor de ejemplo de `frontend/.env.production` o definí `VITE_API_URL` en Netlify. En Render, `CORS_ORIGIN` debe coincidir con el dominio Netlify.
 
 Para cargar la biblioteca completa desde los SQL de `backend/seeds/biblioteca/`, iniciá la API una vez para que cree las tablas y luego ejecutá desde `backend/`:
 
@@ -45,7 +69,7 @@ Para cargar la biblioteca completa desde los SQL de `backend/seeds/biblioteca/`,
 yarn seed:biblioteca
 ```
 
-El importador es idempotente: conserva los ejercicios existentes y agrega los nuevos. Para verificar los archivos sin modificar la base, usá `yarn seed:biblioteca --check`.
+El importador conecta a MySQL usando las mismas variables `DB_*` y es idempotente: conserva los ejercicios existentes y agrega los nuevos. Para verificar los archivos sin modificar la base, usá `yarn seed:biblioteca --check`.
 
 ## Usuarios demo
 
@@ -184,7 +208,7 @@ frontend/src/
 - **Progresión:** el motor (`backend/src/progresion/engine.ts`) propone subir, mantener o bajar según carga, repeticiones y RPE. Las sugerencias quedan pendientes de aprobación del entrenador.
 - **Molestias:** no bloquean la creación del plan ni recomiendan alternativas automáticamente. El entrenador recibe advertencias y decide.
 - **Roles:** `admin`, `entrenador`, `alumno`, validados por un guard global con decoradores `@Publica` y `@Roles`.
-- **SQLite local:** `synchronize: true`. Para producción, migrar a PostgreSQL, desactivar `synchronize`, usar migraciones y definir `JWT_SECRET`.
+- **Base de datos:** MySQL en desarrollo y producción; `synchronize` se activa explícitamente con `DB_SYNCHRONIZE=true` y debe desactivarse después de la creación inicial. Los cambios futuros del esquema deben aplicarse mediante migraciones.
 
 ## Tests y build
 

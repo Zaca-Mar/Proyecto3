@@ -145,7 +145,7 @@ export default function Login() {
         {enviando ? 'Un momento…' : modo === 'login' ? 'Ingresar' : 'Crear mi cuenta'}
       </button>
 
-      {modo === 'login' ? (
+      {modo === 'login' && import.meta.env.DEV ? (
         <div className="par">
           <button
             className="btn sec chico"
