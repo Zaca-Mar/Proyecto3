@@ -78,15 +78,18 @@ export class SeedService implements OnApplicationBootstrap {
 
     const ejercicios: Record<string, Ejercicio> = {};
     for (const [nombre, grupo, zonas, incremento] of CATALOGO) {
-      ejercicios[nombre] = await this.ejercicios.save(
-        this.ejercicios.create({
-          nombre,
-          grupoMuscular: grupo,
-          zonas,
-          incremento: incremento || 2.5,
-          videoUrl: videoDe(nombre),
-        }),
-      );
+      const existente = await this.ejercicios.findOneBy({ nombre });
+      ejercicios[nombre] =
+        existente ??
+        (await this.ejercicios.save(
+          this.ejercicios.create({
+            nombre,
+            grupoMuscular: grupo,
+            zonas,
+            incremento: incremento || 2.5,
+            videoUrl: videoDe(nombre),
+          }),
+        ));
     }
 
     const infoEjercicio = new Map(

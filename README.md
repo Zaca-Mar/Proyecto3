@@ -39,6 +39,14 @@ En el celular: usá la IP de tu PC con el puerto `5173`, en la misma red WiFi. V
 
 La primera vez que arranca la API se crea `backend/fittracker.db` con datos demo (usuarios, ejercicios, un plan, una sesión y molestias). Para empezar de cero: parar la API, borrar `fittracker.db` y volver a arrancarla.
 
+Para cargar la biblioteca completa desde los SQL de `backend/seeds/biblioteca/`, iniciá la API una vez para que cree las tablas y luego ejecutá desde `backend/`:
+
+```bash
+yarn seed:biblioteca
+```
+
+El importador es idempotente: conserva los ejercicios existentes y agrega los nuevos. Para verificar los archivos sin modificar la base, usá `yarn seed:biblioteca --check`.
+
 ## Usuarios demo
 
 Todas las contraseñas son `1234`.
