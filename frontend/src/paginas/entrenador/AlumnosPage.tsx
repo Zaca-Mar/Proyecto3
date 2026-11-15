@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { api, mensajeDeError } from '../../api';
-import type { Alumno, MolestiaEntrenador, PlanResumen } from '../../tipos';
+import { api, mensajeDeError } from '../../api/cliente';
+import type { Alumno, MolestiaEntrenador, PlanResumen } from '../../dominio/modelos';
 
 interface Props {
   alumnos: Alumno[];

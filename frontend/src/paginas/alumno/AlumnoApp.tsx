@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../auth';
-import type { Sesion } from '../../tipos';
+import type { Sesion } from '../../dominio/modelos';
 import Gym from './Gym';
 import Historial from './Historial';
 import Hoy from './Hoy';

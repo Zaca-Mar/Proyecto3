@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
-import { PlanesService } from './planes.service';
+import { CrearPlanUseCase } from './use-cases/crear-plan.use-case';
+import { AsignarPlanUseCase } from './use-cases/asignar-plan.use-case';
+import { PlanesQueryService } from './queries/planes-query.service';
 import { CrearPlanDto } from './dto/crear-plan.dto';
 import { AsignarPlanDto } from './dto/asignar-plan.dto';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -8,7 +10,11 @@ import { UsuarioToken } from '../common/interfaces/usuario-token.interface';
 
 @Controller('planes')
 export class PlanesController {
-  constructor(private readonly planes: PlanesService) {}
+  constructor(
+    private readonly crearPlan: CrearPlanUseCase,
+    private readonly asignarPlan: AsignarPlanUseCase,
+    private readonly planes: PlanesQueryService,
+  ) {}
 
   @Roles('entrenador')
   @Get()
@@ -32,7 +38,7 @@ export class PlanesController {
   @Roles('entrenador')
   @Post()
   crear(@Yo() usuario: UsuarioToken, @Body() dto: CrearPlanDto) {
-    return this.planes.crear(usuario.sub, dto);
+    return this.crearPlan.ejecutar(usuario.sub, dto);
   }
 
   @Roles('entrenador')
@@ -42,6 +48,6 @@ export class PlanesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AsignarPlanDto,
   ) {
-    return this.planes.asignar(usuario.sub, id, dto.alumnoId);
+    return this.asignarPlan.ejecutar(usuario.sub, id, dto.alumnoId);
   }
 }

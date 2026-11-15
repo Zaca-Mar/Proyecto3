@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, mensajeDeError } from '../../api';
+import { api, mensajeDeError } from '../../api/cliente';
 import { useAuth } from '../../auth';
-import type { RegistroDatos, Usuario } from '../../tipos';
+import type { RegistroDatos, Usuario } from '../../dominio/modelos';
+import { crearEntrenadorSchema } from '../../esquemas/ejercicio.schema';
 
 const VACIO: RegistroDatos = {
   nombre: '',
@@ -36,34 +37,18 @@ export default function AdminApp() {
     setError('');
     setExito('');
 
-    if (
-      !form.nombre.trim() ||
-      !form.apellido.trim() ||
-      !form.email.trim() ||
-      !form.dni.trim() ||
-      !form.telefono.trim() ||
-      !form.password
-    ) {
-      return setError('Completá todos los campos para dar de alta al entrenador.');
-    }
-    if (!/^\d{7,9}$/.test(form.dni.trim())) {
-      return setError('El DNI debe tener entre 7 y 9 números.');
+    const validado = crearEntrenadorSchema.safeParse(form);
+    if (!validado.success) {
+      return setError(validado.error.issues[0].message);
     }
 
     setGuardando(true);
     try {
       await api<Usuario>('/auth/entrenadores', {
         method: 'POST',
-        body: {
-          ...form,
-          nombre: form.nombre.trim(),
-          apellido: form.apellido.trim(),
-          email: form.email.trim(),
-          dni: form.dni.trim(),
-          telefono: form.telefono.trim(),
-        },
+        body: validado.data,
       });
-      setExito(`Entrenador ${form.nombre} ${form.apellido} creado con acceso a la app.`);
+      setExito(`Entrenador ${validado.data.nombre} ${validado.data.apellido} creado con acceso a la app.`);
       setForm(VACIO);
       await cargar();
     } catch (e) {

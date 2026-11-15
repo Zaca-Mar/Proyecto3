@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { api, mensajeDeError } from '../../../api';
-import { ZONAS, type Ejercicio } from '../../../tipos';
+import { api, mensajeDeError } from '../../../api/cliente';
+import { ZONAS, type Ejercicio } from '../../../dominio/modelos';
+import { molestiaSchema } from '../../../esquemas/molestia.schema';
 
 interface Props {
   ejercicio: Ejercicio;
@@ -15,15 +16,19 @@ export default function ModalMolestia({ ejercicio, cerrar }: Props) {
   const [enviada, setEnviada] = useState(false);
 
   async function enviar() {
-    if (!zona) return setError('Elegí la zona del cuerpo donde sentiste la molestia.');
-    if (!texto.trim()) return setError('Contanos brevemente qué sentiste.');
+    const validado = molestiaSchema.safeParse({ zona, observacion: texto });
+    if (!validado.success) return setError(validado.error.issues[0].message);
 
     setError('');
     setEnviando(true);
     try {
       await api('/molestias', {
         method: 'POST',
-        body: { ejercicioId: ejercicio.id, zona, observacion: texto.trim() },
+        body: {
+          ejercicioId: ejercicio.id,
+          zona: validado.data.zona,
+          observacion: validado.data.observacion,
+        },
       });
       setEnviada(true);
     } catch (e) {

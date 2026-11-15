@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, mensajeDeError } from '../../api';
-import { fmt, type Ejercicio, type Sesion } from '../../tipos';
+import { useState } from 'react';
+import { fmt, type Ejercicio, type Sesion } from '../../dominio/modelos';
 import ModalMolestia from './componentes/ModalMolestia';
+import Paso from './componentes/Paso';
+import { useGym } from './hooks/useGym';
 
 interface Props {
   sesion: Sesion;
@@ -11,131 +12,22 @@ interface Props {
 
 /** Modo gimnasio: una serie en pocos toques. Carga y reps precargadas; RPE obligatorio. */
 export default function Gym({ sesion, terminado, salir }: Props) {
-  const [actual, setActual] = useState<Sesion>(sesion);
-  const [catalogo, setCatalogo] = useState<Ejercicio[]>([]);
-  const [idx, setIdx] = useState(0);
-  const [carga, setCarga] = useState(0);
-  const [reps, setReps] = useState(0);
-  const [rpe, setRpe] = useState<number | null>(null);
-  const [editando, setEditando] = useState<number | null>(null);
-  const [error, setError] = useState('');
-  const [guardando, setGuardando] = useState(false);
-  const [cerrando, setCerrando] = useState(false);
-  const [finDescanso, setFinDescanso] = useState(0);
-  const [ahora, setAhora] = useState(Date.now());
+  const gym = useGym({ sesion, terminado });
   const [modal, setModal] = useState<Ejercicio | null>(null);
-
-  const musc = useMemo(
-    () => actual.prescripto.filter((p) => p.bloque === 'musculacion'),
-    [actual],
-  );
-  const hechasDe = useCallback(
-    (id: number) => actual.series.filter((s) => s.ejercicioId === id).sort((a, b) => a.numero - b.numero),
-    [actual],
-  );
-
-  useEffect(() => {
-    api<Ejercicio[]>('/ejercicios')
-      .then(setCatalogo)
-      .catch(() => setCatalogo([]));
-  }, []);
-
-  useEffect(() => {
-    const inicio = musc.findIndex((p) => hechasDe(p.ejercicioId).length < p.series);
-    setIdx(inicio >= 0 ? inicio : Math.max(0, musc.length - 1));
-    // Solo al montar: después el índice lo maneja la persona.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const p = musc[Math.min(idx, Math.max(0, musc.length - 1))];
-  const hechas = p ? hechasDe(p.ejercicioId) : [];
-  const porId = useMemo(() => new Map(catalogo.map((e) => [e.id, e])), [catalogo]);
-  const ejercicioActual: Ejercicio | null = p
-    ? porId.get(p.ejercicioId) ?? {
-        id: p.ejercicioId,
-        nombre: p.nombre,
-        grupoMuscular: p.grupoMuscular,
-        videoUrl: null,
-        zonas: [],
-        incremento: p.incremento,
-      }
-    : null;
-
-  useEffect(() => {
-    if (!p) return;
-    setCarga(p.cargaObjetivo);
-    setReps(p.repMax);
-    setRpe(null);
-    setEditando(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, p?.ejercicioId]);
-
-  useEffect(() => {
-    const t = setInterval(() => setAhora(Date.now()), 500);
-    return () => clearInterval(t);
-  }, []);
-
-  const resta = Math.max(0, Math.ceil((finDescanso - ahora) / 1000));
-  const todoCompleto = musc.every((x) => hechasDe(x.ejercicioId).length >= x.series);
-
-  async function refrescarSesion() {
-    const nueva = await api<Sesion | null>('/sesiones/actual');
-    if (nueva) setActual(nueva);
-  }
-
-  async function guardar() {
-    if (!p) return;
-    if (!rpe) return setError('Ingresá el RPE para guardar la serie: es obligatorio.');
-    setError('');
-    setGuardando(true);
-    try {
-      if (editando !== null) {
-        await api(`/series/${editando}`, {
-          method: 'PATCH',
-          body: { carga, repeticiones: reps, rpe },
-        });
-        setEditando(null);
-      } else {
-        await api(`/sesiones/${actual.id}/series`, {
-          method: 'POST',
-          body: { ejercicioId: p.ejercicioId, carga, repeticiones: reps, rpe },
-        });
-        if (p.descanso > 0) setFinDescanso(Date.now() + p.descanso * 1000);
-        if (hechas.length + 1 >= p.series && idx < musc.length - 1) setIdx(idx + 1);
-      }
-      setRpe(null);
-      await refrescarSesion();
-    } catch (e) {
-      setError(mensajeDeError(e));
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  async function terminar() {
-    setError('');
-    setCerrando(true);
-    try {
-      await api(`/sesiones/${actual.id}/cerrar`, { method: 'POST' });
-      terminado();
-    } catch (e) {
-      setError(mensajeDeError(e));
-      setCerrando(false);
-    }
-  }
+  const { p } = gym;
 
   if (!p) {
     return (
       <div className="pantalla pantalla-alumno">
         <h1>Sin ejercicios de musculación</h1>
         <p className="mu">Este día del plan no tiene ejercicios de musculación para registrar.</p>
-        <button className="btn" onClick={terminar} disabled={cerrando} type="button">
-          {cerrando ? 'Cerrando…' : 'Cerrar sesión'}
+        <button className="btn" onClick={gym.terminar} disabled={gym.cerrando} type="button">
+          {gym.cerrando ? 'Cerrando…' : 'Cerrar sesión'}
         </button>
         <button className="btn sec" onClick={salir} type="button">
           Volver sin cerrar
         </button>
-        {error && <div className="aviso">⚑ {error}</div>}
+        {gym.error && <div className="aviso">⚑ {gym.error}</div>}
       </div>
     );
   }
@@ -144,20 +36,31 @@ export default function Gym({ sesion, terminado, salir }: Props) {
     <div className="pantalla pantalla-alumno gym">
       <div className="fila">
         <div>
-          <div className="mu">Sesión #{actual.id}</div>
+          <div className="mu">Sesión #{gym.actual.id}</div>
           <h1>{p.nombre}</h1>
         </div>
         <div className="iconos">
           <button className="icono" onClick={salir} aria-label="Salir" type="button">
             ⎋
           </button>
-          {ejercicioActual?.videoUrl && (
-            <a className="icono" href={ejercicioActual.videoUrl} target="_blank" rel="noreferrer" aria-label="Ver video">
+          {gym.ejercicioActual?.videoUrl && (
+            <a
+              className="icono"
+              href={gym.ejercicioActual.videoUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Ver video"
+            >
               ▶
             </a>
           )}
-          {ejercicioActual && (
-            <button className="icono" onClick={() => setModal(ejercicioActual)} aria-label="Avisar molestia" type="button">
+          {gym.ejercicioActual && (
+            <button
+              className="icono"
+              onClick={() => setModal(gym.ejercicioActual)}
+              aria-label="Avisar molestia"
+              type="button"
+            >
               ⚑
             </button>
           )}
@@ -165,30 +68,32 @@ export default function Gym({ sesion, terminado, salir }: Props) {
       </div>
 
       <p className="mu">
-        Ejercicio {Math.min(idx + 1, musc.length)} de {musc.length} · {p.grupoMuscular}
+        Ejercicio {Math.min(gym.idx + 1, gym.musc.length)} de {gym.musc.length} · {p.grupoMuscular}
       </p>
       <h2>
         Hoy: {p.series} × {p.repMin}–{p.repMax} · {fmt(p.cargaObjetivo)} kg
       </h2>
 
-      {todoCompleto && (
-        <div className="exito">✓ Completaste todas las series de musculación. Podés cerrar la sesión.</div>
+      {gym.todoCompleto && (
+        <div className="exito">
+          ✓ Completaste todas las series de musculación. Podés cerrar la sesión.
+        </div>
       )}
 
       <div className="par">
         <Paso
           titulo="Carga"
-          valor={carga}
+          valor={gym.carga}
           unidad="kg"
-          menos={() => setCarga(Math.max(0, carga - (p.incremento || 2.5)))}
-          mas={() => setCarga(carga + (p.incremento || 2.5))}
+          menos={() => gym.setCarga(Math.max(0, gym.carga - (p.incremento || 2.5)))}
+          mas={() => gym.setCarga(gym.carga + (p.incremento || 2.5))}
         />
         <Paso
           titulo="Repeticiones"
-          valor={reps}
+          valor={gym.reps}
           unidad="reps"
-          menos={() => setReps(Math.max(0, reps - 1))}
-          mas={() => setReps(reps + 1)}
+          menos={() => gym.setReps(Math.max(0, gym.reps - 1))}
+          mas={() => gym.setReps(gym.reps + 1)}
         />
       </div>
 
@@ -202,10 +107,10 @@ export default function Gym({ sesion, terminado, salir }: Props) {
         {[6, 7, 8, 9, 10].map((v) => (
           <button
             key={v}
-            className={rpe === v ? 'on' : ''}
+            className={gym.rpe === v ? 'on' : ''}
             onClick={() => {
-              setRpe(v);
-              setError('');
+              gym.setRpe(v);
+              gym.setError('');
             }}
             type="button"
           >
@@ -214,42 +119,47 @@ export default function Gym({ sesion, terminado, salir }: Props) {
         ))}
       </div>
 
-      {error && <div className="aviso">⚑ {error}</div>}
-      <button className="btn" onClick={guardar} disabled={guardando} type="button">
-        {guardando ? 'Guardando…' : editando !== null ? 'Actualizar serie' : `Guardá la serie ${hechas.length + 1}`}
+      {gym.error && <div className="aviso">⚑ {gym.error}</div>}
+      <button className="btn" onClick={gym.guardar} disabled={gym.guardando} type="button">
+        {gym.guardando
+          ? 'Guardando…'
+          : gym.editando !== null
+            ? 'Actualizar serie'
+            : `Guardá la serie ${gym.hechas.length + 1}`}
       </button>
 
       <div className="card descanso-card fila">
         <div>
           <div className="mu">DESCANSO</div>
           <div className="grande">
-            {resta
-              ? `${String(Math.floor(resta / 60)).padStart(2, '0')}:${String(resta % 60).padStart(2, '0')}`
+            {gym.resta
+              ? `${String(Math.floor(gym.resta / 60)).padStart(2, '0')}:${String(gym.resta % 60).padStart(2, '0')}`
               : '--:--'}
           </div>
         </div>
-        <button className="btn sec chico" style={{ width: 'auto', margin: 0 }} onClick={terminar} disabled={cerrando} type="button">
-          {cerrando ? 'Cerrando…' : 'Terminar sesión'}
+        <button
+          className="btn sec chico"
+          style={{ width: 'auto', margin: 0 }}
+          onClick={gym.terminar}
+          disabled={gym.cerrando}
+          type="button"
+        >
+          {gym.cerrando ? 'Cerrando…' : 'Terminar sesión'}
         </button>
       </div>
 
       <h3>
-        Series guardadas · {hechas.length} / {p.series}
+        Series guardadas · {gym.hechas.length} / {p.series}
       </h3>
-      {hechas.length === 0 && <p className="mu">Tu primera serie va a aparecer acá.</p>}
-      {hechas.map((s) => (
+      {gym.hechas.length === 0 && <p className="mu">Tu primera serie va a aparecer acá.</p>}
+      {gym.hechas.map((s) => (
         <div className="fila mu serie-guardada" key={s.id}>
           <span>
             ✓ Serie {s.numero} · {fmt(s.carga)} kg × {s.repeticiones} · RPE {s.rpe}
           </span>
           <button
             className="btn sec mini"
-            onClick={() => {
-              setEditando(s.id);
-              setCarga(s.carga);
-              setReps(s.repeticiones);
-              setRpe(s.rpe);
-            }}
+            onClick={() => gym.editarSerie(s)}
             type="button"
           >
             Editar
@@ -257,17 +167,17 @@ export default function Gym({ sesion, terminado, salir }: Props) {
         </div>
       ))}
 
-      {musc.length > 1 && (
+      {gym.musc.length > 1 && (
         <div className="selector-gym">
           <h3>Cambiar de ejercicio</h3>
           <div className="chips-ejercicios">
-            {musc.map((x, i) => {
-              const listas = hechasDe(x.ejercicioId).length;
+            {gym.musc.map((x, i) => {
+              const listas = gym.hechasDe(x.ejercicioId).length;
               return (
                 <button
                   key={`${x.ejercicioId}-${i}`}
-                  className={`chip-ejercicio ${i === idx ? 'on' : ''} ${listas >= x.series ? 'completo' : ''}`}
-                  onClick={() => setIdx(i)}
+                  className={`chip-ejercicio ${i === gym.idx ? 'on' : ''} ${listas >= x.series ? 'completo' : ''}`}
+                  onClick={() => gym.setIdx(i)}
                   type="button"
                 >
                   <b>{x.nombre}</b>
@@ -286,41 +196,10 @@ export default function Gym({ sesion, terminado, salir }: Props) {
           ejercicio={modal}
           cerrar={() => {
             setModal(null);
-            refrescarSesion().catch(() => undefined);
+            gym.refrescarSesion().catch(() => undefined);
           }}
         />
       )}
-    </div>
-  );
-}
-
-function Paso({
-  titulo,
-  valor,
-  unidad,
-  menos,
-  mas,
-}: {
-  titulo: string;
-  valor: number;
-  unidad: string;
-  menos: () => void;
-  mas: () => void;
-}) {
-  return (
-    <div className="paso">
-      <span className="mu">{titulo.toUpperCase()}</span>
-      <b>
-        {fmt(valor)} <small className="mu">{unidad}</small>
-      </b>
-      <div>
-        <button onClick={menos} aria-label={`Menos ${titulo}`} type="button">
-          −
-        </button>
-        <button onClick={mas} aria-label={`Más ${titulo}`} type="button">
-          +
-        </button>
-      </div>
     </div>
   );
 }

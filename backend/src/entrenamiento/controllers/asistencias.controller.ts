@@ -1,5 +1,6 @@
 import { Controller, Get, Post } from '@nestjs/common';
-import { AsistenciasService } from '../services/asistencias.service';
+import { RegistrarAsistenciaUseCase } from '../use-cases/registrar-asistencia.use-case';
+import { AsistenciasQueryService } from '../queries/asistencias-query.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Yo } from '../../common/decorators/yo.decorator';
 import { UsuarioToken } from '../../common/interfaces/usuario-token.interface';
@@ -7,7 +8,10 @@ import { UsuarioToken } from '../../common/interfaces/usuario-token.interface';
 @Controller('asistencias')
 @Roles('alumno')
 export class AsistenciasController {
-  constructor(private readonly asistencias: AsistenciasService) {}
+  constructor(
+    private readonly registrarAsistencia: RegistrarAsistenciaUseCase,
+    private readonly asistencias: AsistenciasQueryService,
+  ) {}
 
   /** US12 */
   @Get('hoy')
@@ -17,6 +21,6 @@ export class AsistenciasController {
 
   @Post()
   registrar(@Yo() usuario: UsuarioToken) {
-    return this.asistencias.registrar(usuario.sub);
+    return this.registrarAsistencia.ejecutar(usuario.sub);
   }
 }

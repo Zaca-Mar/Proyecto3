@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, mensajeDeError } from '../../api';
-import { fechaCorta } from '../../formato';
-import { fmt, type HistorialCompleto } from '../../tipos';
+import { api, mensajeDeError } from '../../api/cliente';
+import { fechaCorta } from '../../utils/formato';
+import { fmt, type HistorialCompleto } from '../../dominio/modelos';
 
 export default function Historial() {
   const [datos, setDatos] = useState<HistorialCompleto | null>(null);

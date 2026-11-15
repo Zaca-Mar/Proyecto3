@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { UsuariosController } from './usuarios.controller';
-import { UsuariosService } from './services/usuarios.service';
-import { ResumenService } from './services/resumen.service';
+import { VincularAlumnoUseCase } from './use-cases/vincular-alumno.use-case';
+import { UsuariosQueryService } from './queries/usuarios-query.service';
+import { ResumenQueryService } from './queries/resumen-query.service';
 
 @Module({
   controllers: [UsuariosController],
-  providers: [UsuariosService, ResumenService],
-  exports: [UsuariosService],
+  providers: [VincularAlumnoUseCase, UsuariosQueryService, ResumenQueryService],
 })
 export class UsuariosModule {}

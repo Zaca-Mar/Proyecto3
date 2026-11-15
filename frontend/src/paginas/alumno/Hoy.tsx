@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, mensajeDeError } from '../../api';
+import { api, mensajeDeError } from '../../api/cliente';
 import { useAuth } from '../../auth';
-import { fmt, type Ejercicio, type MolestiaAlumno, type PlanDelDia, type Sesion, type Sugerencia } from '../../tipos';
+import type { Ejercicio, MolestiaAlumno, PlanDelDia, Sesion, Sugerencia } from '../../dominio/modelos';
 import ModalMolestia from './componentes/ModalMolestia';
+import SugerenciasAlumno from './componentes/SugerenciasAlumno';
+import TarjetaEjercicioHoy from './componentes/TarjetaEjercicioHoy';
 
 interface Props {
   onEntrar: (sesion: Sesion) => void;
@@ -150,64 +152,17 @@ export default function Hoy({ onEntrar }: Props) {
             return (
               <section key={valor} className="bloque-plan">
                 <h3>{titulo}</h3>
-                {lista.map((p) => {
-                  const molestia = molestiaDe(p.ejercicio.nombre, p.ejercicioId);
-                  const hecho = hechos.includes(p.id);
-                  const esMusculacion = p.bloque === 'musculacion';
-                  return (
-                    <article key={p.id} className={`card ejercicio-alumno ${molestia ? 'mol' : ''}`}>
-                      <div className="fila">
-                        <h2 className={molestia ? 'ambar' : ''}>{p.ejercicio.nombre}</h2>
-                        <span className={`pill ${hecho ? 'l' : ''}`}>
-                          {esMusculacion ? `${p.series} series` : hecho ? 'Hecho' : 'Pendiente'}
-                        </span>
-                      </div>
-                      <p className="mu">
-                        {esMusculacion
-                          ? `${p.series} × ${p.repMin}–${p.repMax} reps · ${fmt(p.cargaObjetivo)} kg · descanso ${p.descanso} s`
-                          : `${p.series} × ${p.repMax} reps`}
-                      </p>
-
-                      {molestia && (
-                        <div className="aviso">
-                          <b className="ambar">⚑ Molestia reportada · {molestia.zona}</b>
-                          <div>{molestia.observacion}</div>
-                          <span className="mu">{molestia.leida ? 'Tu entrenador ya la vio' : 'Sin leer por tu entrenador'}</span>
-                        </div>
-                      )}
-
-                      <div className="acciones-ejercicio">
-                        {p.ejercicio.videoUrl && (
-                          <a
-                            className="btn sec chico"
-                            href={p.ejercicio.videoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            ▶ Video
-                          </a>
-                        )}
-                        <button
-                          className="btn sec chico"
-                          onClick={() => setModal(porId.get(p.ejercicioId) ?? p.ejercicio)}
-                          type="button"
-                        >
-                          ⚑ Molestia
-                        </button>
-                        {!esMusculacion && (
-                          <button
-                            className="btn sec chico"
-                            disabled={!asistio}
-                            onClick={() => alternarHecho(p.id)}
-                            type="button"
-                          >
-                            {hecho ? '✓ Hecho' : 'Marcar hecho'}
-                          </button>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
+                {lista.map((p) => (
+                  <TarjetaEjercicioHoy
+                    key={p.id}
+                    prescripto={p}
+                    molestia={molestiaDe(p.ejercicio.nombre, p.ejercicioId)}
+                    hecho={hechos.includes(p.id)}
+                    asistio={asistio}
+                    onAbrirMolestia={() => setModal(porId.get(p.ejercicioId) ?? p.ejercicio)}
+                    onAlternarHecho={() => alternarHecho(p.id)}
+                  />
+                ))}
               </section>
             );
           })}
@@ -229,33 +184,7 @@ export default function Hoy({ onEntrar }: Props) {
         </section>
       )}
 
-      {sugerenciasVisibles.length > 0 && (
-        <section className="sugerencias-alumno">
-          <div className="fila">
-            <h2>Para la próxima</h2>
-            <span className="pill l">{sugerenciasVisibles.length}</span>
-          </div>
-          <p className="mu">Cargas que propone tu progresión, revisadas por tu entrenador.</p>
-          {sugerenciasVisibles.slice(0, 4).map((s) => (
-            <article key={s.id} className={`card ${s.aviso ? 'mol' : 'hl'}`}>
-              <div className="fila">
-                <b>{s.ejercicioNombre}</b>
-                <span className={`pill ${s.estado === 'aprobada' ? 'l' : ''}`}>
-                  {s.estado === 'aprobada' ? 'Aprobada' : 'Pendiente'}
-                </span>
-              </div>
-              <div className="fila">
-                <span className="mu">{s.accion === 'subir' ? 'Subir carga' : s.accion}</span>
-                <b className="lima">
-                  {fmt(s.carga)} kg × {s.repsObjetivo}+
-                </b>
-              </div>
-              <p className="mu">{s.explicacion}</p>
-              {s.aviso && <div className="aviso">⚑ {s.aviso}</div>}
-            </article>
-          ))}
-        </section>
-      )}
+      <SugerenciasAlumno sugerencias={sugerenciasVisibles} />
 
       {modal && (
         <ModalMolestia

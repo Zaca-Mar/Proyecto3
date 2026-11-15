@@ -148,6 +148,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 .card.hl { border-color: var(--lima); }
 .card.mol { border: 1.5px solid var(--ambar); background: #1d1810; }
+.card.eleccion-plan {
+  border: 1.5px solid var(--ambar);
+  background: linear-gradient(180deg, #241d0f, var(--tarjeta) 70%);
+}
+.eleccion-plan .acciones-fila { margin-top: 12px; }
 
 .tarjeta { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; color: inherit; font: inherit; cursor: pointer; }
 
@@ -179,6 +184,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 .aviso ul { margin: 6px 0 0; padding-left: 18px; }
 .aviso.inline { border-left-width: 3px; margin-top: 6px; display: grid; gap: 2px; }
+.copia-aviso { display: grid; gap: 6px; }
+.copia-aviso .acciones-fila { justify-content: flex-start; margin-top: 2px; }
 
 .exito {
   margin-top: 10px;
@@ -229,6 +236,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .lista-simple { display: grid; gap: 2px; margin-top: 8px; }
 .fila-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--borde); }
 .fila-item:last-child { border-bottom: 0; }
+.fila-item.plan-item { flex-wrap: wrap; }
+.plan-item.activo { padding-left: 9px; border-left: 3px solid var(--lima); }
+.plan-acciones { margin-top: 0; flex-wrap: nowrap; }
+.plan-acciones .btn.mini { margin: 0; }
 
 /* ---------- tablas ---------- */
 
