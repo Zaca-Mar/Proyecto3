@@ -35,14 +35,21 @@ export default function Gym({ sesion, terminado, salir }: Props) {
   return (
     <div className="pantalla pantalla-alumno gym">
       <div className="fila">
-        <div>
-          <div className="mu">Sesión #{gym.actual.id}</div>
-          <h1>{p.nombre}</h1>
+        <div className="cabecera-gym">
+          <button
+            className="icono volver"
+            onClick={salir}
+            aria-label="Volver al plan"
+            type="button"
+          >
+            ←
+          </button>
+          <div>
+            <div className="mu">Sesión #{gym.actual.id}</div>
+            <h1>{p.nombre}</h1>
+          </div>
         </div>
         <div className="iconos">
-          <button className="icono" onClick={salir} aria-label="Salir" type="button">
-            ⎋
-          </button>
           {gym.ejercicioActual?.videoUrl && (
             <a
               className="icono"
@@ -54,16 +61,6 @@ export default function Gym({ sesion, terminado, salir }: Props) {
               ▶
             </a>
           )}
-          {gym.ejercicioActual && (
-            <button
-              className="icono"
-              onClick={() => setModal(gym.ejercicioActual)}
-              aria-label="Avisar molestia"
-              type="button"
-            >
-              ⚑
-            </button>
-          )}
         </div>
       </div>
 
@@ -73,6 +70,16 @@ export default function Gym({ sesion, terminado, salir }: Props) {
       <h2>
         Hoy: {p.series} × {p.repMin}–{p.repMax} · {fmt(p.cargaObjetivo)} kg
       </h2>
+
+      {gym.ejercicioActual && (
+        <button
+          className="btn-molestia"
+          onClick={() => setModal(gym.ejercicioActual)}
+          type="button"
+        >
+          <span aria-hidden="true">⚠</span> Reportar molestia
+        </button>
+      )}
 
       {gym.todoCompleto && (
         <div className="exito">
@@ -137,15 +144,16 @@ export default function Gym({ sesion, terminado, salir }: Props) {
               : '--:--'}
           </div>
         </div>
-        <button
-          className="btn sec chico"
-          style={{ width: 'auto', margin: 0 }}
-          onClick={gym.terminar}
-          disabled={gym.cerrando}
-          type="button"
-        >
-          {gym.cerrando ? 'Cerrando…' : 'Terminar sesión'}
-        </button>
+        {gym.resta > 0 && (
+          <button
+            className="btn sec chico"
+            style={{ width: 'auto', margin: 0 }}
+            onClick={gym.saltarDescanso}
+            type="button"
+          >
+            Saltar descanso
+          </button>
+        )}
       </div>
 
       <h3>
@@ -190,6 +198,15 @@ export default function Gym({ sesion, terminado, salir }: Props) {
           </div>
         </div>
       )}
+
+      <button
+        className={`btn terminar-sesion ${gym.todoCompleto ? '' : 'sec'}`}
+        onClick={gym.terminar}
+        disabled={gym.cerrando}
+        type="button"
+      >
+        {gym.cerrando ? 'Cerrando…' : 'Terminar entrenamiento'}
+      </button>
 
       {modal && (
         <ModalMolestia

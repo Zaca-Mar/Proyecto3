@@ -50,7 +50,7 @@ export default function TarjetaEjercicioHoy({
           </a>
         )}
         <button className="btn sec chico" onClick={onAbrirMolestia} type="button">
-          ⚑ Molestia
+          ⚠ Reportar molestia
         </button>
         {!esMusculacion && (
           <button

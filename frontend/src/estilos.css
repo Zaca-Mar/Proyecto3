@@ -1,10 +1,3 @@
-/* ============================================================
-   FitTracker · sistema visual
-   Un único acento lima sobre fondo oscuro.
-   - Alumno: app móvil centrada, navegación inferior.
-   - Entrenador: escritorio con barra lateral y planificador de 3 columnas.
-   ============================================================ */
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
 :root {
@@ -286,6 +279,79 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    ============================================================ */
 
 .pantalla { max-width: 420px; margin: 0 auto; padding: 24px; min-height: 100vh; }
+
+/* ---------- login: celular = columna única, escritorio = panel dividido ---------- */
+.login { max-width: 420px; margin: 0 auto; padding: 24px; min-height: 100vh; }
+.login-puntos { display: none; }
+.login-marca {
+  position: relative;
+  overflow: hidden;
+  padding: 18px 20px 22px;
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, rgba(9, 11, 9, .88) 0%, rgba(9, 11, 9, .55) 55%, rgba(9, 11, 9, .15) 100%),
+    url('/login-gym.jpg') 72% center / cover no-repeat;
+}
+.login-marca .hero { font-size: 30px; margin: 30px 0 0; }
+.login-saludo { margin: 28px 0 4px; font-size: 26px; line-height: 1.2; font-weight: 800; }
+.login-sub { margin: 0; color: var(--apagado); font-size: 14px; }
+.login-enlace {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px;
+  border: 0;
+  background: none;
+  color: var(--apagado);
+  font: inherit;
+  font-size: 14px;
+  text-align: center;
+  cursor: pointer;
+}
+.login-enlace b { color: var(--lima); }
+
+@media (min-width: 1024px) {
+  .login {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  .login-marca {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 64px clamp(48px, 7vw, 112px);
+    border-radius: 0;
+    background:
+      linear-gradient(90deg, rgba(9, 11, 9, .9) 0%, rgba(9, 11, 9, .62) 55%, rgba(9, 11, 9, .12) 100%),
+      url('/login-gym.jpg') 47% center / cover no-repeat;
+    border-right: 1px solid var(--borde);
+  }
+  .login-marca .marca { font-size: 22px; }
+  .login-marca .hero { font-size: clamp(44px, 4.6vw, 64px); margin: 36px 0 28px; }
+  .login-puntos {
+    display: grid;
+    gap: 14px;
+    max-width: 440px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--apagado);
+    font-size: 15px;
+  }
+  .login-puntos li { display: flex; gap: 12px; }
+  .login-puntos li::before { content: '✓'; color: var(--lima); font-weight: 700; }
+  .login-saludo { margin-top: 0; }
+  .login-form {
+    align-self: center;
+    justify-self: center;
+    width: 100%;
+    max-width: 460px;
+    padding: 48px 32px;
+  }
+}
 
 .segmentado {
   display: grid;
@@ -760,6 +826,24 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .rpe button.on { background: var(--lima); color: #0b0d0b; }
 
 .descanso-card { margin-top: 16px; }
+.cabecera-gym { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.icono.volver { flex: none; color: var(--lima); font-size: 24px; }
+.terminar-sesion { margin-top: 28px; }
+.btn-molestia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 1.5px solid var(--ambar);
+  border-radius: 12px;
+  background: var(--ambarSuave);
+  color: var(--ambar);
+  font: 700 14px Inter, sans-serif;
+  cursor: pointer;
+}
 .serie-guardada { padding: 8px 10px; border-radius: 10px; background: #121512; margin-top: 6px; font-size: 12px; }
 .selector-gym { margin-top: 18px; }
 .chips-ejercicios { display: grid; gap: 5px; }
