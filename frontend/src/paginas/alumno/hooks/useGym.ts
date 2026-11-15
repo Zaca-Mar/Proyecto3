@@ -111,6 +111,10 @@ export function useGym({ sesion, terminado }: Args) {
     }
   }
 
+  function saltarDescanso() {
+    setFinDescanso(0);
+  }
+
   async function terminar() {
     setError('');
     setCerrando(true);
@@ -153,6 +157,7 @@ export function useGym({ sesion, terminado }: Args) {
     todoCompleto,
     guardar,
     terminar,
+    saltarDescanso,
     refrescarSesion,
     editarSerie,
     p,
