@@ -1,5 +1,5 @@
 import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
-import { HistorialService } from '../services/historial.service';
+import { HistorialQueryService } from '../queries/historial-query.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Yo } from '../../common/decorators/yo.decorator';
 import { UsuarioToken } from '../../common/interfaces/usuario-token.interface';
@@ -7,7 +7,7 @@ import { UsuarioToken } from '../../common/interfaces/usuario-token.interface';
 @Controller('historial')
 @Roles('alumno')
 export class HistorialController {
-  constructor(private readonly historial: HistorialService) {}
+  constructor(private readonly historial: HistorialQueryService) {}
 
   /** US6: historial completo agrupado por ejercicio. */
   @Get()

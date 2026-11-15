@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, mensajeDeError } from '../../api';
+import { api, mensajeDeError } from '../../api/cliente';
 import { useAuth } from '../../auth';
 import type {
   Alumno,
@@ -7,7 +7,7 @@ import type {
   MolestiaEntrenador,
   PlanResumen,
   Sugerencia,
-} from '../../tipos';
+} from '../../dominio/modelos';
 import AlumnosPage from './AlumnosPage';
 import CatalogoPage from './CatalogoPage';
 import MolestiasPage from './MolestiasPage';
@@ -56,6 +56,7 @@ export default function EntrenadorApp() {
   const [ejercicios, setEjercicios] = useState<Ejercicio[]>([]);
   const [planes, setPlanes] = useState<PlanResumen[]>([]);
   const [alumnoId, setAlumnoId] = useState<number | null>(null);
+  const [abrirPlanActivo, setAbrirPlanActivo] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
@@ -93,8 +94,9 @@ export default function EntrenadorApp() {
     sugerencias: sugerencias.length,
   };
 
-  function irA(nueva: Pagina, alumno?: number) {
+  function irA(nueva: Pagina, alumno?: number, editarPlanActivo = false) {
     if (alumno) setAlumnoId(alumno);
+    setAbrirPlanActivo(editarPlanActivo);
     setPagina(nueva);
     setError('');
   }
@@ -177,6 +179,8 @@ export default function EntrenadorApp() {
             onElegirAlumno={setAlumnoId}
             onIrAAlumnos={() => irA('alumnos')}
             onRecargar={cargar}
+            abrirPlanActivo={abrirPlanActivo}
+            onPlanActivoAbierto={() => setAbrirPlanActivo(false)}
           />
         )}
 
@@ -193,7 +197,7 @@ export default function EntrenadorApp() {
         {!cargando && pagina === 'molestias' && (
           <MolestiasPage
             molestias={molestias}
-            onVerAlumno={(id) => irA('planificador', id)}
+            onVerAlumno={(id) => irA('planificador', id, true)}
             onRecargar={cargar}
           />
         )}

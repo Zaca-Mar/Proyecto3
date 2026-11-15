@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MolestiasController } from './molestias.controller';
-import { MolestiasService } from './molestias.service';
+import { CrearMolestiaUseCase } from './use-cases/crear-molestia.use-case';
+import { MarcarMolestiaLeidaUseCase } from './use-cases/marcar-molestia-leida.use-case';
+import { MolestiasQueryService } from './queries/molestias-query.service';
 
 @Module({
   controllers: [MolestiasController],
-  providers: [MolestiasService],
-  exports: [MolestiasService],
+  providers: [CrearMolestiaUseCase, MarcarMolestiaLeidaUseCase, MolestiasQueryService],
 })
 export class MolestiasModule {}

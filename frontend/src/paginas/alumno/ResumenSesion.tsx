@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { api, mensajeDeError } from '../../api';
+import { api, mensajeDeError } from '../../api/cliente';
 import { useAuth } from '../../auth';
-import { fmt, type Sugerencia } from '../../tipos';
+import { fmt, type Sugerencia } from '../../dominio/modelos';
 
 interface Props {
   volver: () => void;

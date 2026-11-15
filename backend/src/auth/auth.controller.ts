@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { RegistrarUsuarioUseCase } from './use-cases/registrar-usuario.use-case';
+import { LoginUseCase } from './use-cases/login.use-case';
+import { AuthQueryService } from './queries/auth-query.service';
 import { RegistroDto } from './dto/registro.dto';
 import { LoginDto } from './dto/login.dto';
 import { Publica } from '../common/decorators/publica.decorator';
@@ -9,20 +11,24 @@ import { UsuarioToken } from '../common/interfaces/usuario-token.interface';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly registrarUsuario: RegistrarUsuarioUseCase,
+    private readonly loginUseCase: LoginUseCase,
+    private readonly auth: AuthQueryService,
+  ) {}
 
   /** US17: registro público de alumnos. */
   @Publica()
   @Post('registro')
   registro(@Body() dto: RegistroDto) {
-    return this.auth.registrar(dto, 'alumno');
+    return this.registrarUsuario.ejecutar(dto, 'alumno');
   }
 
   /** US1: el administrador da de alta entrenadores con su rol. */
   @Roles('admin')
   @Post('entrenadores')
   nuevoEntrenador(@Body() dto: RegistroDto) {
-    return this.auth.registrar(dto, 'entrenador');
+    return this.registrarUsuario.ejecutar(dto, 'entrenador');
   }
 
   @Roles('admin')
@@ -35,7 +41,7 @@ export class AuthController {
   @Publica()
   @Post('login')
   login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
+    return this.loginUseCase.ejecutar(dto);
   }
 
   @Get('yo')

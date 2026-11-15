@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { api, mensajeDeError } from '../../api';
-import { fechaHora } from '../../formato';
-import type { MolestiaEntrenador } from '../../tipos';
+import { api, mensajeDeError } from '../../api/cliente';
+import { fechaHora } from '../../utils/formato';
+import type { MolestiaEntrenador } from '../../dominio/modelos';
 
 interface Props {
   molestias: MolestiaEntrenador[];

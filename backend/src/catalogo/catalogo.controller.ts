@@ -1,12 +1,16 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
-import { CatalogoService } from './catalogo.service';
+import { CrearEjercicioUseCase } from './use-cases/crear-ejercicio.use-case';
+import { CatalogoQueryService } from './queries/catalogo-query.service';
 import { CrearEjercicioDto } from './dto/crear-ejercicio.dto';
 import { ListarEjerciciosQueryDto } from './dto/listar-ejercicios-query.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('ejercicios')
 export class CatalogoController {
-  constructor(private readonly catalogo: CatalogoService) {}
+  constructor(
+    private readonly crearEjercicio: CrearEjercicioUseCase,
+    private readonly catalogo: CatalogoQueryService,
+  ) {}
 
   @Get()
   listar(@Query() query: ListarEjerciciosQueryDto) {
@@ -16,6 +20,6 @@ export class CatalogoController {
   @Roles('entrenador')
   @Post()
   crear(@Body() dto: CrearEjercicioDto) {
-    return this.catalogo.crear(dto);
+    return this.crearEjercicio.ejecutar(dto);
   }
 }

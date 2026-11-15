@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { api, mensajeDeError } from '../../api';
-import { fmt, type Sugerencia } from '../../tipos';
+import { api, mensajeDeError } from '../../api/cliente';
+import { fmt, type Sugerencia } from '../../dominio/modelos';
 
 interface Props {
   sugerencias: Sugerencia[];

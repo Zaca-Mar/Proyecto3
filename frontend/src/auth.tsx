@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { api } from './api';
-import type { RegistroDatos, Usuario } from './tipos';
+import { api } from './api/cliente';
+import type { RegistroDatos, Usuario } from './dominio/modelos';
 
 interface Ctx {
   usuario: Usuario | null;

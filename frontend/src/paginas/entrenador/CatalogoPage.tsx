@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { api, mensajeDeError } from '../../api';
-import type { Ejercicio } from '../../tipos';
+import { api, mensajeDeError } from '../../api/cliente';
+import type { Ejercicio } from '../../dominio/modelos';
+import { crearEjercicioSchema } from '../../esquemas/ejercicio.schema';
 
 interface Props {
   ejercicios: Ejercicio[];
@@ -34,20 +35,14 @@ export default function CatalogoPage({ ejercicios, onRecargar }: Props) {
   async function crear() {
     setError('');
     setExito('');
-    if (!form.nombre.trim() || !form.grupoMuscular.trim()) {
-      return setError('Nombre y grupo muscular son obligatorios.');
-    }
-    if (form.videoUrl.trim()) {
-      try {
-        new URL(form.videoUrl.trim());
-      } catch {
-        return setError('El link del video debe ser una URL válida.');
-      }
+    const validado = crearEjercicioSchema.safeParse(form);
+    if (!validado.success) {
+      return setError(validado.error.issues[0].message);
     }
 
     setGuardando(true);
     try {
-      const zonas = form.zonas
+      const zonas = validado.data.zonas
         .split(',')
         .map((z) => z.trim())
         .filter(Boolean);
@@ -55,15 +50,15 @@ export default function CatalogoPage({ ejercicios, onRecargar }: Props) {
       await api<Ejercicio>('/ejercicios', {
         method: 'POST',
         body: {
-          nombre: form.nombre.trim(),
-          grupoMuscular: form.grupoMuscular.trim(),
-          videoUrl: form.videoUrl.trim() || undefined,
+          nombre: validado.data.nombre,
+          grupoMuscular: validado.data.grupoMuscular,
+          videoUrl: validado.data.videoUrl || undefined,
           zonas,
           incremento: 2.5,
         },
       });
 
-      setExito(`“${form.nombre.trim()}” agregado al catálogo.`);
+      setExito(`“${validado.data.nombre}” agregado al catálogo.`);
       setForm(VACIO);
       await onRecargar();
     } catch (e) {

@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
-import { api, mensajeDeError } from '../../api';
-import { fechaCorta } from '../../formato';
 import type {
   Alumno,
   Ejercicio,
   MolestiaEntrenador,
   PlanResumen,
-  Resumen,
-} from '../../tipos';
+} from '../../dominio/modelos';
 import EditorPlan from './componentes/EditorPlan';
+import EleccionPlanActivo from './componentes/EleccionPlanActivo';
+import ListaPlanesAlumno from './componentes/ListaPlanesAlumno';
 import ResumenAlumno from './componentes/ResumenAlumno';
+import SelectorAlumnos from './componentes/SelectorAlumnos';
+import { usePlanificador } from './hooks/usePlanificador';
 
 interface Props {
   alumnos: Alumno[];
@@ -20,6 +20,9 @@ interface Props {
   onElegirAlumno: (id: number) => void;
   onIrAAlumnos: () => void;
   onRecargar: () => Promise<void> | void;
+  /** Si es true, abre el plan activo del alumno (llegada desde una molestia). */
+  abrirPlanActivo: boolean;
+  onPlanActivoAbierto: () => void;
 }
 
 export default function PlanificadorPage({
@@ -31,37 +34,17 @@ export default function PlanificadorPage({
   onElegirAlumno,
   onIrAAlumnos,
   onRecargar,
+  abrirPlanActivo,
+  onPlanActivoAbierto,
 }: Props) {
-  const [resumen, setResumen] = useState<Resumen | null>(null);
-  const [cargandoResumen, setCargandoResumen] = useState(false);
-  const [errorResumen, setErrorResumen] = useState('');
+  const planificador = usePlanificador({
+    alumnoId,
+    planes,
+    onRecargar,
+    abrirPlanActivo,
+    onPlanActivoAbierto,
+  });
 
-  const cargarResumen = useCallback(async () => {
-    if (!alumnoId) {
-      setResumen(null);
-      return;
-    }
-    setCargandoResumen(true);
-    setErrorResumen('');
-    try {
-      setResumen(await api<Resumen>(`/alumnos/${alumnoId}/resumen`));
-    } catch (e) {
-      setResumen(null);
-      setErrorResumen(mensajeDeError(e));
-    } finally {
-      setCargandoResumen(false);
-    }
-  }, [alumnoId]);
-
-  useEffect(() => {
-    cargarResumen();
-  }, [cargarResumen]);
-
-  async function despuesDeGuardar() {
-    await Promise.all([onRecargar(), cargarResumen()]);
-  }
-
-  const planesDelAlumno = planes.filter((p) => p.alumnoId === alumnoId).slice(0, 6);
   const alumnoActual = alumnos.find((a) => a.id === alumnoId);
 
   if (alumnos.length === 0) {
@@ -81,97 +64,71 @@ export default function PlanificadorPage({
 
   return (
     <div className="pagina planificador">
-      <section className="card selector-alumnos">
-        <div className="fila">
-          <div>
-            <h2>1 · Elegí el alumno</h2>
-            <p className="mu">El panel derecho se actualiza con su historial y molestias.</p>
-          </div>
-          <span className="pill">{alumnos.length} disponibles</span>
-        </div>
-        <div className="chips-alumnos">
-          {alumnos.map((a) => {
-            const sinLeer = molestias.filter((m) => m.alumnoId === a.id && !m.leida).length;
-            return (
-              <button
-                key={a.id}
-                className={`chip-alumno ${a.id === alumnoId ? 'on' : ''}`}
-                onClick={() => onElegirAlumno(a.id)}
-                type="button"
-              >
-                <span className="avatar chico-avatar">
-                  {a.nombre[0]}
-                  {a.apellido[0]}
-                </span>
-                <span className="chip-texto">
-                  <b>
-                    {a.nombre} {a.apellido}
-                  </b>
-                  <span className="mu">DNI {a.dni}</span>
-                </span>
-                {sinLeer > 0 && <span className="punto-alerta">{sinLeer}</span>}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <SelectorAlumnos
+        alumnos={alumnos}
+        alumnoId={alumnoId}
+        molestias={molestias}
+        onElegirAlumno={onElegirAlumno}
+      />
 
-      {errorResumen && <div className="aviso">⚑ {errorResumen}</div>}
+      {planificador.errorResumen && <div className="aviso">⚑ {planificador.errorResumen}</div>}
 
       {alumnoId && (
         <div className="planificador-grid">
           <div className="planificador-editor">
+            {!planificador.planEditando &&
+              !planificador.creandoNuevo &&
+              !planificador.cargandoPlan &&
+              planificador.planActivo && (
+                <EleccionPlanActivo
+                  planActivo={planificador.planActivo}
+                  cargando={planificador.cargandoPlan}
+                  onEditar={planificador.editarPlan}
+                  onCrearNuevo={planificador.crearPlanNuevo}
+                />
+              )}
+
+            <ListaPlanesAlumno
+              planes={planificador.planesDelAlumno}
+              alumnoNombre={alumnoActual?.nombre ?? 'este alumno'}
+              planEditandoId={planificador.planEditando?.id ?? null}
+              cargando={planificador.cargandoPlan}
+              error={planificador.errorPlan}
+              onEditar={planificador.editarPlan}
+              onAsignar={planificador.asignarPlan}
+              onCrearNuevo={planificador.crearPlanNuevo}
+            />
+
             <div className="paso-titulo">
-              <span className="numero-paso">2</span>
+              <span className="numero-paso">3</span>
               <div>
-                <h2>Armá el plan</h2>
+                <h2>{planificador.planEditando ? 'Modificá el plan' : 'Armá el plan'}</h2>
                 <p className="mu">
                   Elegí ejercicios de la biblioteca, ordenalos y definí series, reps y carga.
                 </p>
               </div>
             </div>
             <EditorPlan
+              key={`${alumnoId}-${planificador.editorVersion}`}
               alumnoId={alumnoId}
-              resumen={resumen}
+              resumen={planificador.resumen}
               ejercicios={ejercicios}
-              onGuardado={despuesDeGuardar}
+              planInicial={planificador.planEditando}
+              onGuardado={planificador.despuesDeGuardar}
+              onSalirEdicion={planificador.salirEdicion}
+              onCrearNuevo={planificador.crearPlanNuevo}
             />
           </div>
 
           <aside className="planificador-aside">
             <div className="paso-titulo">
-              <span className="numero-paso">3</span>
+              <span className="numero-paso">4</span>
               <div>
                 <h2>Mirá antes de guardar</h2>
                 <p className="mu">Resumen, molestias y récords del alumno.</p>
               </div>
             </div>
-            <ResumenAlumno resumen={resumen} cargando={cargandoResumen} />
-
-            <section className="card">
-              <div className="fila">
-                <h2>Planes de {alumnoActual?.nombre ?? 'este alumno'}</h2>
-                <span className="pill">{planesDelAlumno.length}</span>
-              </div>
-              {planesDelAlumno.length === 0 && (
-                <p className="mu">Todavía no le creaste ningún plan. El primero se guarda acá.</p>
-              )}
-              <div className="lista-simple">
-                {planesDelAlumno.map((p) => (
-                  <div className="fila-item" key={p.id}>
-                    <div className="crece">
-                      <b>{p.nombre}</b>
-                      <div className="mu">
-                        {fechaCorta(p.creado.slice(0, 10))} · {p.dias} días · {p.ejercicios} ejercicios
-                      </div>
-                    </div>
-                    <span className={`pill ${p.activo ? 'l' : ''}`}>
-                      {p.activo ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
+            <ResumenAlumno resumen={planificador.resumen} cargando={planificador.cargandoResumen} />
           </aside>
         </div>
       )}

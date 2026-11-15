@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { CatalogoController } from './catalogo.controller';
-import { CatalogoService } from './catalogo.service';
+import { CrearEjercicioUseCase } from './use-cases/crear-ejercicio.use-case';
+import { CatalogoQueryService } from './queries/catalogo-query.service';
 
 @Module({
   controllers: [CatalogoController],
-  providers: [CatalogoService],
-  exports: [CatalogoService],
+  providers: [CrearEjercicioUseCase, CatalogoQueryService],
 })
 export class CatalogoModule {}

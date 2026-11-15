@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { mensajeDeError } from '../api';
+import { mensajeDeError } from '../api/cliente';
 import { useAuth } from '../auth';
+import { loginSchema, registroSchema } from '../esquemas/auth.schema';
 
 type Modo = 'login' | 'registro';
 
@@ -27,35 +28,48 @@ export default function Login() {
     if (enviando) return;
     setError('');
 
-    if (!email.trim() || !password) {
-      return setError('Completá el email y la contraseña.');
-    }
+    let acceso: { email: string; password: string } | null = null;
+    let alta: {
+      nombre: string;
+      apellido: string;
+      email: string;
+      dni: string;
+      telefono: string;
+      password: string;
+    } | null = null;
 
-    if (modo === 'registro') {
-      if (!nombre.trim() || !apellido.trim() || !dni.trim() || !telefono.trim()) {
-        return setError('Completá todos los datos personales obligatorios.');
-      }
-      if (!/^\d{7,9}$/.test(dni.trim())) {
-        return setError('El DNI debe tener entre 7 y 9 números.');
-      }
-      if (password !== repetir) {
-        return setError('Las contraseñas no coinciden.');
-      }
+    if (modo === 'login') {
+      const validado = loginSchema.safeParse({ email, password });
+      if (!validado.success) return setError(validado.error.issues[0].message);
+      acceso = validado.data;
+    } else {
+      const validado = registroSchema.safeParse({
+        nombre,
+        apellido,
+        dni,
+        telefono,
+        email,
+        password,
+        repetir,
+      });
+      if (!validado.success) return setError(validado.error.issues[0].message);
+      const datos = validado.data;
+      alta = {
+        nombre: datos.nombre,
+        apellido: datos.apellido,
+        email: datos.email,
+        dni: datos.dni,
+        telefono: datos.telefono,
+        password: datos.password,
+      };
     }
 
     setEnviando(true);
     try {
-      if (modo === 'login') {
-        await ingresar(email.trim(), password);
-      } else {
-        await registrar({
-          nombre: nombre.trim(),
-          apellido: apellido.trim(),
-          email: email.trim(),
-          dni: dni.trim(),
-          telefono: telefono.trim(),
-          password,
-        });
+      if (acceso) {
+        await ingresar(acceso.email, acceso.password);
+      } else if (alta) {
+        await registrar(alta);
       }
     } catch (e) {
       setError(mensajeDeError(e));

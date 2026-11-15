@@ -1,5 +1,5 @@
-import { fechaCorta, fechaHora } from '../../../formato';
-import { fmt, type Resumen } from '../../../tipos';
+import { fechaCorta, fechaHora } from '../../../utils/formato';
+import { fmt, type Resumen } from '../../../dominio/modelos';
 
 interface Props {
   resumen: Resumen | null;
