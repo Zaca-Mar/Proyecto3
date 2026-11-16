@@ -25,6 +25,9 @@ export function usePlanificador({
   const [cargandoPlan, setCargandoPlan] = useState(false);
   const [errorPlan, setErrorPlan] = useState('');
   const [creandoNuevo, setCreandoNuevo] = useState(false);
+  const [planVisualizando, setPlanVisualizando] = useState<PlanDetalle | null>(null);
+  const [cargandoVisor, setCargandoVisor] = useState(false);
+  const [errorVisor, setErrorVisor] = useState('');
 
   const cargarResumen = useCallback(async () => {
     if (!alumnoId) {
@@ -51,6 +54,8 @@ export function usePlanificador({
     setPlanEditando(null);
     setCreandoNuevo(false);
     setErrorPlan('');
+    setPlanVisualizando(null);
+    setErrorVisor('');
     setEditorVersion((v) => v + 1);
   }, [alumnoId]);
 
@@ -77,6 +82,24 @@ export function usePlanificador({
     setCreandoNuevo(true);
     setErrorPlan('');
     setEditorVersion((v) => v + 1);
+  }, []);
+
+  /** Abre el plan en modo lectura, sin cargarlo en el editor. */
+  const visualizarPlan = useCallback(async (id: number) => {
+    setCargandoVisor(true);
+    setErrorVisor('');
+    try {
+      setPlanVisualizando(await api<PlanDetalle>(`/planes/${id}`));
+    } catch (e) {
+      setErrorVisor(mensajeDeError(e));
+    } finally {
+      setCargandoVisor(false);
+    }
+  }, []);
+
+  const cerrarVisor = useCallback(() => {
+    setPlanVisualizando(null);
+    setErrorVisor('');
   }, []);
 
   const asignarPlan = useCallback(
@@ -118,9 +141,14 @@ export function usePlanificador({
     creandoNuevo,
     planesDelAlumno,
     planActivo,
+    planVisualizando,
+    cargandoVisor,
+    errorVisor,
     despuesDeGuardar,
     editarPlan,
     crearPlanNuevo,
+    visualizarPlan,
+    cerrarVisor,
     asignarPlan,
     salirEdicion,
   };

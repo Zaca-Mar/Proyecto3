@@ -1,17 +1,23 @@
-import type { Alumno, MolestiaEntrenador } from '../../../dominio/modelos';
+import type { Alumno, MolestiaEntrenador, PlanResumen } from '../../../dominio/modelos';
 
 interface Props {
   alumnos: Alumno[];
   alumnoId: number | null;
   molestias: MolestiaEntrenador[];
+  planActivo: PlanResumen | null;
+  cargandoPlan: boolean;
   onElegirAlumno: (id: number) => void;
+  onVisualizarPlan: (id: number) => void;
 }
 
 export default function SelectorAlumnos({
   alumnos,
   alumnoId,
   molestias,
+  planActivo,
+  cargandoPlan,
   onElegirAlumno,
+  onVisualizarPlan,
 }: Props) {
   return (
     <section className="card selector-alumnos">
@@ -47,6 +53,29 @@ export default function SelectorAlumnos({
           );
         })}
       </div>
+      {alumnoId && (
+        <div className="acciones-alumno">
+          <span className="mu crece">
+            {planActivo ? (
+              <>
+                Plan activo: <b>{planActivo.nombre}</b> · {planActivo.dias}{' '}
+                {planActivo.dias === 1 ? 'día' : 'días'} · {planActivo.ejercicios} ejercicios
+              </>
+            ) : (
+              'Este alumno todavía no tiene un plan activo.'
+            )}
+          </span>
+          <button
+            className="btn sec mini"
+            onClick={() => planActivo && onVisualizarPlan(planActivo.id)}
+            disabled={!planActivo || cargandoPlan}
+            title={planActivo ? 'Ver el plan sin abrir la edición' : 'Asigná un plan para poder visualizarlo'}
+            type="button"
+          >
+            {cargandoPlan ? 'Cargando plan…' : 'Visualizar plan'}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

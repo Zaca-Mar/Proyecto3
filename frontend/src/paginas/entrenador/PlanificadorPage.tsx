@@ -9,6 +9,7 @@ import EleccionPlanActivo from './componentes/EleccionPlanActivo';
 import ListaPlanesAlumno from './componentes/ListaPlanesAlumno';
 import ResumenAlumno from './componentes/ResumenAlumno';
 import SelectorAlumnos from './componentes/SelectorAlumnos';
+import VisorPlan from './componentes/VisorPlan';
 import { usePlanificador } from './hooks/usePlanificador';
 
 interface Props {
@@ -68,10 +69,14 @@ export default function PlanificadorPage({
         alumnos={alumnos}
         alumnoId={alumnoId}
         molestias={molestias}
+        planActivo={planificador.planActivo}
+        cargandoPlan={planificador.cargandoVisor}
         onElegirAlumno={onElegirAlumno}
+        onVisualizarPlan={planificador.visualizarPlan}
       />
 
       {planificador.errorResumen && <div className="aviso">⚑ {planificador.errorResumen}</div>}
+      {planificador.errorVisor && <div className="aviso">⚑ {planificador.errorVisor}</div>}
 
       {alumnoId && (
         <div className="planificador-grid">
@@ -131,6 +136,16 @@ export default function PlanificadorPage({
             <ResumenAlumno resumen={planificador.resumen} cargando={planificador.cargandoResumen} />
           </aside>
         </div>
+      )}
+
+      {planificador.planVisualizando && (
+        <VisorPlan
+          plan={planificador.planVisualizando}
+          alumnoNombre={
+            alumnoActual ? `${alumnoActual.nombre} ${alumnoActual.apellido}` : 'Alumno'
+          }
+          onCerrar={planificador.cerrarVisor}
+        />
       )}
     </div>
   );
