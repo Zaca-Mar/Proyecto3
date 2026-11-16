@@ -535,6 +535,16 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   font-size: 10px;
   font-weight: 800;
 }
+.acciones-alumno {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+.acciones-alumno .mu { font-size: 11px; }
+.acciones-alumno .btn { flex: none; }
 
 .panel-resumen { display: grid; gap: 12px; }
 .plan-activo { display: grid; gap: 2px; margin-top: 10px; padding: 9px 11px; border-radius: 10px; background: var(--control); }
@@ -941,6 +951,49 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 .hoja h1 { font-size: 25px; line-height: 1.2; }
 
+/* ---------- visor de plan (solo lectura) ---------- */
+
+.fondo.visor-fondo { align-items: center; padding: 20px; }
+.hoja.visor-plan {
+  max-width: 820px;
+  max-height: 88vh;
+  padding: 22px;
+  border-radius: 22px;
+}
+.visor-cabecera { align-items: flex-start; }
+.visor-cabecera h1 { font-size: 24px; line-height: 1.15; }
+.visor-dias { display: grid; gap: 12px; margin-top: 16px; }
+.visor-dia { padding: 14px 16px; }
+.visor-dia h2 { font-size: 16px; }
+.visor-bloque { margin-top: 12px; }
+.visor-bloque-titulo {
+  margin: 0 0 4px;
+  color: var(--lima);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.visor-filas { display: grid; }
+.fila-visor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--borde);
+}
+.fila-visor:last-child { border-bottom: 0; }
+.fila-visor b { font-size: 13px; }
+.visor-datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  justify-content: flex-end;
+  font-size: 11px;
+  color: var(--apagado);
+}
+.visor-datos span { white-space: nowrap; }
+
 /* ============================================================
    RESPONSIVE
    ============================================================ */
@@ -1003,4 +1056,17 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   .acciones-ejercicio .btn { flex: 1 1 40%; }
   .avatar-gr { width: 46px; height: 46px; }
   .barra-fila { grid-template-columns: 80px 1fr 30px; }
+}
+
+
+@media (max-width: 640px) {
+  .fondo.visor-fondo { align-items: flex-end; padding: 0; }
+  .hoja.visor-plan {
+    max-width: 100%;
+    max-height: 94%;
+    border-radius: 26px 26px 0 0;
+  }
+  .fila-visor { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .visor-datos { justify-content: flex-start; }
+}
 }
